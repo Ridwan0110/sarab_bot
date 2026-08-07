@@ -1,0 +1,16 @@
+services:
+  find_my_iphone_automate:
+    container_name: sarab_bot
+    image: ghcr.io/ridwan0110/sarab_bot:latest
+    restart: unless-stopped
+    volumes:
+      - sarab_bot_data:/app/data
+    environment:
+      - TZ=
+      # Normally configured via the .env file
+      - TOKEN
+      - GUILD_ID
+      - MC_SERVER_MANAGER_URL
+volumes:
+  sarab_bot_data:
+    driver: local

@@ -1,0 +1,19 @@
+[Unit]
+Description=SARAB Bot - A Discord bot
+After=network.target
+
+[Service]
+User=sarab
+
+# Replace with the absolute path to your project's root directory
+WorkingDirectory=/home/sarab/scripts/discord_bots/sarab_bot/
+
+# Command to execute
+ExecStart=/home/sarab/scripts/discord_bots/sarab_bot/run.sh
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

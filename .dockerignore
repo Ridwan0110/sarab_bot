@@ -1,0 +1,24 @@
+# Virtual Environments
+pyvenv/
+venv/
+.venv/
+env/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables & secrets
+.env
+*.env
+
+# Logs
+logs/
+*.log
+
+# Git & Docker files
+.git
+.gitignore
+Dockerfile
+.dockerignore

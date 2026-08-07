@@ -1,0 +1,6 @@
+--extra-index-url https://pypi.sarabserver.xyz/simple
+
+discord-py~=2.7.1
+redu-logger~=1.0.5
+python-dotenv~=1.2.2
+requests~=2.34.2
