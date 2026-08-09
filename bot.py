@@ -202,7 +202,7 @@ class MCServerController:
         Returns:
             tuple: (success (bool), message (str or None))
         """
-        logger.info(f"Restoring backup of server '{server_name}'. Backup ID: {backup_id if backup_id else "latest"}")
+        logger.info(f"Restoring backup of server '{server_name}'. Backup ID: {backup_id if backup_id else 'latest'}")
 
         url = f"{self.server_url}/api/restore-backup"
         json_data = {
