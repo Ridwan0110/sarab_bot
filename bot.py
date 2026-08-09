@@ -11,7 +11,7 @@ from discord.ext import commands
 
 
 # Development Section
-__version__ =  "0.2.0"
+__version__ =  "0.3.0"
 required_env_keys = ["TOKEN", "MC_SERVER_MANAGER_URL"]
 optional_env_keys = ["GUILD_ID", "WOL_URL"]
 
