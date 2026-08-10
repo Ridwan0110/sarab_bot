@@ -13,7 +13,7 @@ from typing import Optional
 
 
 # Development Section
-__version__ =  "0.3.1"
+__version__ =  "0.4.0"
 required_env_keys = ["TOKEN", "MC_SERVER_MANAGER_URL"]
 optional_env_keys = ["GUILD_ID", "WOL_URL"]
 
@@ -86,7 +86,7 @@ class MCServerController:
                       json_data: dict,
                       action_desc: str,
                       server_name: str,
-                      body_mode: Optional[str] = None) -> tuple[bool, str]:
+                      body_mode: Optional[str] = None) -> tuple:
         """
         Helper method to execute HTTP POST requests and handle standard exceptions.
 
@@ -123,7 +123,7 @@ class MCServerController:
 
             if body_mode == "raw":
                 body = safe_get_response_body(response)
-                msg = str(body)
+                msg = body
             elif body_mode == "attach":
                 body = safe_get_response_body(response)
                 msg = f"Successfully {action_desc} server '{server_name}'\nResponse: {body}"
@@ -288,6 +288,42 @@ class MCServerController:
         )
 
         return success, msg
+
+    def stats(self, server_name: str):
+        """
+        Retrieve stats of a Minecraft server
+
+        Args:
+            server_name (str): The name of the Minecraft server
+
+        Returns:
+            tuple: (success (bool), message (str or None))
+        """
+        logger.info(f"Retrieving stats of server '{server_name}'")
+
+        url = f"{self.server_url}/api/stats"
+        json_data = {
+            "server": server_name,
+        }
+
+        success, msg = self._send_request(
+            url=url,
+            json_data=json_data,
+            action_desc=f"retrieved stats",
+            server_name=server_name,
+            body_mode="raw"
+        )
+
+        logger.debug(msg)
+
+        # Format stats
+        stats = (f"**Server Name**: {msg['server_name']}"
+                 f"\n**Server Type**: {msg['server_type']}"
+                 f"\n**World**: {msg['world_name']}"
+                 f"\n**Port**: {msg['port']}"
+                 f"\n**Online Players**: {msg['players']} - {msg['online_players']} out of {msg['max_players']}")
+
+        return success, stats
 
 
 class SARABHomeController:
@@ -509,6 +545,15 @@ def main():
         else:
             await interaction.followup.send(f"```text\n{msg}\n```")
 
+    # /mcserver_stats
+    @client.tree.command(name="mcserver_stats", description="Retrieve an existing Minecraft server stats", guild=GUILD_ID)
+    async def command_mcserver_stats(interaction: discord.Interaction, server_name: str):
+        await interaction.response.defer()
+        function_name = inspect.currentframe().f_code.co_name
+        logger.info(f"Executing '{function_name}'", True)
+        _, msg = mcsrv_controller.stats(server_name=server_name)
+        await interaction.followup.send(msg)
+
     # /wol
     @client.tree.command(name="wol", description="Send wake-on-lan magic packet to a device", guild=GUILD_ID)
     async def command_wol(interaction: discord.Interaction, device: str = None, mac_address: str = None):
@@ -516,6 +561,13 @@ def main():
         logger.info(f"Executing '{function_name}'", True)
         _, msg = sarab_home_controller.wol_send(device=device, mac_address=mac_address)
         await interaction.response.send_message(msg)
+
+    # /version
+    @client.tree.command(name="version", description="Prints bot version", guild=GUILD_ID)
+    async def command_version(interaction: discord.Interaction):
+        function_name = inspect.currentframe().f_code.co_name
+        logger.info(f"Executing '{function_name}'", True)
+        await interaction.response.send_message(f"My version: {__version__}")
 
     client.run(token=TOKEN)
 
