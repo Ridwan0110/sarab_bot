@@ -8,6 +8,8 @@ import inspect
 import io
 from pathlib import Path
 from discord.ext import commands
+from requests import Response
+from typing import Optional
 
 
 # Development Section
@@ -84,7 +86,7 @@ class MCServerController:
                       json_data: dict,
                       action_desc: str,
                       server_name: str,
-                      attach_body: bool = False) -> tuple[bool, str]:
+                      body_mode: Optional[str] = None) -> tuple[bool, str]:
         """
         Helper method to execute HTTP POST requests and handle standard exceptions.
 
@@ -93,25 +95,36 @@ class MCServerController:
             json_data (dict): A dictionary containing JSON data to be sent with request
             action_desc (str): Description of why the request was sent for logging purposes
             server_name (str): Server to sent action to
-            attach_body (bool): (Optional) Attach body info with message in return if success. Default is False
-
+            body_mode (Optional[str]): (Optional) Response formatting mode (None, "raw", or "attach")
         Returns:
             tuple: A tuple containing a bool and str
         """
+        body_modes = ["raw", "attach"]
+        if body_mode and body_mode not in body_modes:
+            logger.warning(f"Invalid 'body_mode': {body_mode}. Valid body modes: {body_modes}")
+            body_mode = None
+
         # Helper function to extract json or text safely without crashing on non-JSON payloads
-        def safe_get_response_body(response):
-            if response is None:
+        def safe_get_response_body(res: Optional[Response]):
+            if res is None:
                 return "None"
             try:
-                return response.json()
+                res_json = res.json()
+                # Extract 'logs' value to preserve raw string newlines for self.logs()
+                if isinstance(res_json, dict) and "logs" in res_json:
+                    return res_json["logs"]
+                return res_json
             except requests.exceptions.JSONDecodeError:
-                return response.text if response.text else "Empty Response Body"
+                return res.text if res.text else "Empty Response Body"
 
         try:
             response = requests.post(url=url, json=json_data, timeout=15)
             response.raise_for_status()
 
-            if attach_body:
+            if body_mode == "raw":
+                body = safe_get_response_body(response)
+                msg = str(body)
+            elif body_mode == "attach":
                 body = safe_get_response_body(response)
                 msg = f"Successfully {action_desc} server '{server_name}'\nResponse: {body}"
             else:
@@ -161,7 +174,7 @@ class MCServerController:
         success, msg = self._send_request(
             url=url,
             json_data=json_data,
-            action_desc=f"sent '{action}' command to",
+            action_desc=f"sent {action} command to",
             server_name=server_name
         )
         return success, msg
@@ -267,7 +280,7 @@ class MCServerController:
             json_data=json_data,
             action_desc=f"retrieved logs",
             server_name=server_name,
-            attach_body=True
+            body_mode="raw"
         )
 
         return success, msg
@@ -417,18 +430,21 @@ def main():
         logger.error("'TOKEN' env variable not found. Please check if that key exists on .env file", True)
         return
 
+    # /hello
     @client.tree.command(name="hello", description="Say hello!", guild=GUILD_ID)
     async def command_hello(interaction: discord.Interaction):
         function_name = inspect.currentframe().f_code.co_name
         logger.info(f"Executing '{function_name}'", True)
         await interaction.response.send_message("hello!")
 
+    # /echo
     @client.tree.command(name="echo", description="I will echo anything you give me to echo", guild=GUILD_ID)
     async def command_echo(interaction: discord.Interaction, echo: str):
         function_name = inspect.currentframe().f_code.co_name
         logger.info(f"Executing '{function_name}'", True)
         await interaction.response.send_message(echo)
 
+    # /mcserver_start
     @client.tree.command(name="mcserver_start", description="Start an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_start(interaction: discord.Interaction, server_name: str):
         function_name = inspect.currentframe().f_code.co_name
@@ -436,6 +452,7 @@ def main():
         _, msg = mcsrv_controller.power(server_name, "start")
         await interaction.response.send_message(msg)
 
+    # /mcserver_stop
     @client.tree.command(name="mcserver_stop", description="Stop an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_stop(interaction: discord.Interaction, server_name: str):
         function_name = inspect.currentframe().f_code.co_name
@@ -443,6 +460,7 @@ def main():
         _, msg = mcsrv_controller.power(server_name, "stop")
         await interaction.response.send_message(msg)
 
+    # /mcserver_backup
     @client.tree.command(name="mcserver_backup", description="Backup an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_backup(interaction: discord.Interaction, server_name: str):
         await interaction.response.defer()
@@ -451,6 +469,7 @@ def main():
         _, msg = mcsrv_controller.backup(server_name)
         await interaction.followup.send(msg)
 
+    # /mcserver_restore_backup
     @client.tree.command(name="mcserver_restore_backup", description="Restore backup of an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_restore_backup(interaction: discord.Interaction, server_name: str, backup_id: int = None):
         await interaction.response.defer()
@@ -459,6 +478,7 @@ def main():
         _, msg = mcsrv_controller.restore_backup(server_name=server_name, backup_id=backup_id)
         await interaction.followup.send(msg)
 
+    # /mcserver_command
     @client.tree.command(name="mcserver_command", description="Send command to an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_command(interaction: discord.Interaction, server_name: str, command: str):
         function_name = inspect.currentframe().f_code.co_name
@@ -466,6 +486,7 @@ def main():
         _, msg = mcsrv_controller.send_command(server_name, command)
         await interaction.response.send_message(msg)
 
+    # /mcserver_logs
     @client.tree.command(name="mcserver_logs", description="Retrieve logs from an existing Minecraft server",
                          guild=GUILD_ID)
     async def command_mcserver_logs(interaction: discord.Interaction, server_name: str):
@@ -479,12 +500,13 @@ def main():
             file_bytes = io.BytesIO(msg.encode("utf-8"))
             file = discord.File(fp=file_bytes, filename=f"{server_name}_logs.txt")
             await interaction.followup.send(
-                content=f"Logs for **{server_name}** were too long for Discord message body and have been attached as a file:",
+                content=f"Logs for **{server_name}** have been attached as a file.",
                 file=file
             )
         else:
             await interaction.followup.send(f"```text\n{msg}\n```")
 
+    # /wol
     @client.tree.command(name="wol", description="Send wake-on-lan magic packet to a device", guild=GUILD_ID)
     async def command_wol(interaction: discord.Interaction, device: str = None, mac_address: str = None):
         function_name = inspect.currentframe().f_code.co_name
