@@ -492,11 +492,11 @@ def main():
 
     # /mcserver_logs
     @client.tree.command(name="mcserver_logs", description="Retrieve logs from an existing Minecraft server", guild=GUILD_ID)
-    async def command_mcserver_logs(interaction: discord.Interaction, server_name: str):
+    async def command_mcserver_logs(interaction: discord.Interaction, server_name: str, lines: int = None):
         await interaction.response.defer()
         function_name = inspect.currentframe().f_code.co_name
         logger.info(f"Executing '{function_name}'", True)
-        _, msg = mcsrv_controller.logs(server_name=server_name)
+        _, msg = mcsrv_controller.logs(server_name=server_name, lines=lines)
 
         if len(msg) > 1900:
             # Send full log as a text file attachment if it exceeds character limits
