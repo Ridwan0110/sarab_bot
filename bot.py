@@ -13,7 +13,7 @@ from typing import Optional
 
 
 # Development Section
-__version__ =  "0.3.0"
+__version__ =  "0.3.1"
 required_env_keys = ["TOKEN", "MC_SERVER_MANAGER_URL"]
 optional_env_keys = ["GUILD_ID", "WOL_URL"]
 
@@ -258,12 +258,15 @@ class MCServerController:
         )
         return success, msg
 
-    def logs(self, server_name: str) -> tuple [bool, str]:
+    def logs(self,
+             server_name: str,
+             lines: int = None) -> tuple [bool, str]:
         """
         Retrieve logs of a Minecraft server
 
         Args:
             server_name (str): The name of the Minecraft server
+            lines (int): Limit log lines
 
         Returns:
             tuple: (success (bool), message (str or None))
@@ -272,7 +275,8 @@ class MCServerController:
 
         url = f"{self.server_url}/api/logs"
         json_data = {
-            "server": server_name
+            "server": server_name,
+            "lines": lines
         }
 
         success, msg = self._send_request(
@@ -487,8 +491,7 @@ def main():
         await interaction.response.send_message(msg)
 
     # /mcserver_logs
-    @client.tree.command(name="mcserver_logs", description="Retrieve logs from an existing Minecraft server",
-                         guild=GUILD_ID)
+    @client.tree.command(name="mcserver_logs", description="Retrieve logs from an existing Minecraft server", guild=GUILD_ID)
     async def command_mcserver_logs(interaction: discord.Interaction, server_name: str):
         await interaction.response.defer()
         function_name = inspect.currentframe().f_code.co_name
